@@ -1,3 +1,4 @@
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import mysql.connector
 import bcrypt
@@ -25,6 +26,7 @@ for i in range(max_retries):
         time.sleep(retry_delay)
 else:
     raise Exception("❌ Could not connect to MySQL after several attempts.")
+
 cursor = conn.cursor()
 
 @app.route('/signup', methods=['POST'])
@@ -33,10 +35,10 @@ def signup():
     try:
         hashed_pw = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
         cursor.execute("INSERT INTO users (first_name, middle_name, last_name, username, password, email) VALUES (%s, %s, %s, %s, %s, %s)",
-                       (data['first_name'], data['middle_name'], data['last_name'], data['username'], hashed_pw, data['email']))
+                       (data['first_name'], data['middle_name'], data['last_name'], data['username'], hashed_pw.decode('utf-8'), data['email']))
         conn.commit()
         return jsonify({'msg': 'User registered successfully'})
-    except mysql.connector.IntegrityError as e:
+    except mysql.connector.IntegrityError:
         return jsonify({'msg': 'Username or email already exists'}), 409
     except Exception as e:
         return jsonify({'msg': 'Internal Server Error', 'error': str(e)}), 500
@@ -66,12 +68,11 @@ def student():
 
 @app.route('/students', methods=['GET'])
 def get_students():
-    cursor =conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM students")  # Use your actual students table name
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM students")
     students = cursor.fetchall()
     cursor.close()
     return jsonify(students)
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
